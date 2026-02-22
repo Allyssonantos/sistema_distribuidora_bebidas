@@ -2,72 +2,77 @@
 header("Content-Type: application/json; charset=utf-8");
 require_once __DIR__ . "/../config/db.php";
 
-$data = json_decode(file_get_contents("php://input"), true);
-if(!$data){ http_response_code(400); echo json_encode(["ok"=>false,"erro"=>"JSON inválido"]); exit; }
-
-$sessao_id = (int)($data["sessao_id"] ?? 0);
-$obs = trim($data["obs"] ?? "");
-
-if($sessao_id<=0){ http_response_code(400); echo json_encode(["ok"=>false,"erro"=>"sessao_id inválido"]); exit; }
+$de  = $_GET["de"] ?? date("Y-m-d");
+$ate = $_GET["ate"] ?? date("Y-m-d");
+$caixa_sessao_id = (int)($_GET["caixa_sessao_id"] ?? 0);
 
 try{
-  $pdo->beginTransaction();
+  $ini = $de . " 00:00:00";
+  $fim = $ate . " 23:59:59";
 
-  // pega sessão
-  $st = $pdo->prepare("SELECT * FROM caixa_sessoes WHERE id=:id FOR UPDATE");
-  $st->execute(["id"=>$sessao_id]);
-  $sessao = $st->fetch(PDO::FETCH_ASSOC);
-  if(!$sessao) throw new Exception("Sessão não encontrada");
-  if($sessao["status"] !== "ABERTO") throw new Exception("Sessão já está FECHADA");
+  $where = "v.data_venda BETWEEN :ini AND :fim AND v.status='FINALIZADA'";
+  if($caixa_sessao_id > 0){
+    $where .= " AND v.caixa_sessao_id = :sid";
+  }
 
-  // totais das vendas ligadas nessa sessão
-  $tot = $pdo->prepare("
+  // lista vendas (com horários da sessão)
+  $sql = "
     SELECT
-      COUNT(*) qtd_vendas,
-      COALESCE(SUM(total),0) total_geral,
-      COALESCE(SUM(CASE WHEN forma_pagamento='DINHEIRO' THEN total ELSE 0 END),0) dinheiro,
-      COALESCE(SUM(CASE WHEN forma_pagamento='PIX' THEN total ELSE 0 END),0) pix,
-      COALESCE(SUM(CASE WHEN forma_pagamento='CARTAO_DEBITO' THEN total ELSE 0 END),0) deb,
-      COALESCE(SUM(CASE WHEN forma_pagamento='CARTAO_CREDITO' THEN total ELSE 0 END),0) cred,
-      COALESCE(SUM(CASE WHEN forma_pagamento='OUTROS' THEN total ELSE 0 END),0) outros
-    FROM vendas
-    WHERE caixa_sessao_id = :sid AND status='FINALIZADA'
-  ");
-  $tot->execute(["sid"=>$sessao_id]);
-  $t = $tot->fetch(PDO::FETCH_ASSOC);
+      v.id, v.data_venda, v.forma_pagamento, v.total,
+      v.caixa_sessao_id,
+      cs.aberto_em, cs.fechado_em
+    FROM vendas v
+    LEFT JOIN caixa_sessoes cs ON cs.id = v.caixa_sessao_id
+    WHERE $where
+    ORDER BY v.id DESC
+  ";
 
-  // grava fechamento
-  $up = $pdo->prepare("
-    UPDATE caixa_sessoes SET
-      fechado_em = NOW(),
-      status = 'FECHADO',
-      qtd_vendas = :qtd,
-      total_geral = :geral,
-      total_dinheiro = :din,
-      total_pix = :pix,
-      total_cartao_debito = :deb,
-      total_cartao_credito = :cred,
-      total_outros = :out,
-      obs = :obs
-    WHERE id = :id
-  ");
-  $up->execute([
-    "qtd" => (int)$t["qtd_vendas"],
-    "geral" => (float)$t["total_geral"],
-    "din" => (float)$t["dinheiro"],
-    "pix" => (float)$t["pix"],
-    "deb" => (float)$t["deb"],
-    "cred" => (float)$t["cred"],
-    "out" => (float)$t["outros"],
-    "obs" => ($obs===""?null:$obs),
-    "id" => $sessao_id
+  $st = $pdo->prepare($sql);
+  $params = [":ini"=>$ini, ":fim"=>$fim];
+  if($caixa_sessao_id > 0) $params[":sid"] = $caixa_sessao_id;
+  $st->execute($params);
+  $vendas = $st->fetchAll(PDO::FETCH_ASSOC);
+
+  // totais por forma
+  $totais = [
+    "qtd_vendas" => 0,
+    "total_geral" => 0,
+    "dinheiro" => 0,
+    "pix" => 0,
+    "cartao_debito" => 0,
+    "cartao_credito" => 0,
+    "outros" => 0
+  ];
+
+  foreach($vendas as $v){
+    $totais["qtd_vendas"]++;
+    $totais["total_geral"] += (float)$v["total"];
+
+    switch($v["forma_pagamento"]){
+      case "DINHEIRO": $totais["dinheiro"] += (float)$v["total"]; break;
+      case "PIX": $totais["pix"] += (float)$v["total"]; break;
+      case "CARTAO_DEBITO": $totais["cartao_debito"] += (float)$v["total"]; break;
+      case "CARTAO_CREDITO": $totais["cartao_credito"] += (float)$v["total"]; break;
+      default: $totais["outros"] += (float)$v["total"]; break;
+    }
+  }
+
+  // dados da sessão selecionada (se filtrar)
+  $sessao = null;
+  if($caixa_sessao_id > 0){
+    $s = $pdo->prepare("SELECT id, caixa_id, aberto_em, fechado_em, status FROM caixa_sessoes WHERE id=?");
+    $s->execute([$caixa_sessao_id]);
+    $sessao = $s->fetch(PDO::FETCH_ASSOC);
+  }
+
+  echo json_encode([
+    "ok"=>true,
+    "sessao"=>$sessao,
+    "totais"=>$totais,
+    "vendas"=>$vendas
   ]);
 
-  $pdo->commit();
-  echo json_encode(["ok"=>true, "totais"=>$t]);
-
 }catch(Exception $e){
-  if($pdo->inTransaction()) $pdo->rollBack();
   http_response_code(400);
   echo json_encode(["ok"=>false,"erro"=>$e->getMessage()]);
 }

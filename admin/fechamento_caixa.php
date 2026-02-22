@@ -29,9 +29,8 @@
   <label>De: <input type="date" id="de"></label>
   <label>Até: <input type="date" id="ate"></label>
 
-  <label>Caixa:
-    <select id="caixa_id"></select>
-    </select>
+  <label>Caixa (Sessão):
+    <select id="caixa_sessao_id"></select>
   </label>
 
   <button onclick="carregar()">Atualizar</button>
@@ -42,7 +41,25 @@
   <a href="estoque.php">📥 Movimentar Estoque</a>
   <a href="categorias.php">🏷️ Categorias</a>
   <a href="lucro.php">📊 Admin - Lucro</a>
+</div>
 
+<!-- Sessão info -->
+<div class="cards" style="grid-template-columns:repeat(3,1fr);">
+  <div class="card">
+    <b>Sessão</b>
+    <div class="big" id="s_id">-</div>
+    <div class="muted" id="s_status">-</div>
+  </div>
+  <div class="card">
+    <b>Abertura</b>
+    <div class="big" id="s_abertura">-</div>
+    <div class="muted">Horário que abriu o caixa</div>
+  </div>
+  <div class="card">
+    <b>Fechamento</b>
+    <div class="big" id="s_fechamento">-</div>
+    <div class="muted">Horário que fechou o caixa</div>
+  </div>
 </div>
 
 <div class="cards">
@@ -85,7 +102,9 @@
     <tr>
       <th>ID</th>
       <th>Data</th>
-      <th>Caixa</th>
+      <th>Caixa (Sessão)</th>
+      <th>Abertura</th>
+      <th>Fechamento</th>
       <th>Pagamento</th>
       <th class="right">Total</th>
     </tr>
@@ -101,24 +120,32 @@
     return d.toISOString().slice(0,10);
   }
 
-  async function carregarCaixas(){
-    const sel = document.getElementById("caixa_id");
-    sel.innerHTML = `<option value="0">Todos</option>`;
+  function fmtDataHora(s){
+    if(!s) return "-";
+    // se vier "2026-02-22 11:54:57" mantém
+    return String(s).replace("T"," ").slice(0,19);
+  }
 
-    const res = await fetch("../api/caixas_listar.php");
-    const caixas = await res.json();
+  async function carregarSessoes(){
+    const sel = document.getElementById("caixa_sessao_id");
+    sel.innerHTML = `<option value="0">Todas</option>`;
 
-    caixas.forEach(c => {
-        sel.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+    // você vai criar esse endpoint (abaixo eu te passo)
+    const res = await fetch("../api/caixa_sessoes_listar.php");
+    const sessoes = await res.json();
+
+    sessoes.forEach(s => {
+      const titulo = `Sessão #${s.id} (Caixa ${s.caixa_id}) - ${fmtDataHora(s.aberto_em)} - ${s.status}`;
+      sel.innerHTML += `<option value="${s.id}">${titulo}</option>`;
     });
   }
 
   async function carregar(){
     const de = document.getElementById("de").value;
     const ate = document.getElementById("ate").value;
-    const caixa = document.getElementById("caixa_id").value;
+    const sessao = document.getElementById("caixa_sessao_id").value;
 
-    const res = await fetch(`../api/fechamento_caixa.php?de=${de}&ate=${ate}&caixa_id=${caixa}`);
+    const res = await fetch(`../api/fechamento_caixa.php?de=${de}&ate=${ate}&caixa_sessao_id=${sessao}`);
     const json = await res.json();
 
     if(!json.ok){
@@ -126,6 +153,13 @@
       return;
     }
 
+    // sessão info
+    document.getElementById("s_id").textContent = json.sessao?.id ? ("#" + json.sessao.id) : "-";
+    document.getElementById("s_status").textContent = json.sessao?.status || "-";
+    document.getElementById("s_abertura").textContent = fmtDataHora(json.sessao?.aberto_em);
+    document.getElementById("s_fechamento").textContent = fmtDataHora(json.sessao?.fechado_em);
+
+    // totais
     document.getElementById("t_total").textContent = brl(json.totais.total_geral);
     document.getElementById("t_qtd").textContent = `${json.totais.qtd_vendas} vendas`;
 
@@ -135,14 +169,17 @@
     document.getElementById("t_cred").textContent = brl(json.totais.cartao_credito);
     document.getElementById("t_outros").textContent = brl(json.totais.outros);
 
+    // lista
     const tbody = document.getElementById("lista");
     tbody.innerHTML = "";
     json.vendas.forEach(v => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${v.id}</td>
-        <td>${v.data_venda}</td>
-        <td>${v.caixa_id || "-"}</td>
+        <td>${fmtDataHora(v.data_venda)}</td>
+        <td>${v.caixa_sessao_id || "-"}</td>
+        <td>${fmtDataHora(v.aberto_em)}</td>
+        <td>${fmtDataHora(v.fechado_em)}</td>
         <td>${v.forma_pagamento}</td>
         <td class="right">${brl(v.total)}</td>
       `;
@@ -150,15 +187,12 @@
     });
   }
 
-  function imprimir(){
-    window.print();
-  }
+  function imprimir(){ window.print(); }
 
-  // init
   (async () => {
     document.getElementById("de").value = hojeISO();
     document.getElementById("ate").value = hojeISO();
-    await carregarCaixas();
+    await carregarSessoes();
     carregar();
   })();
 </script>

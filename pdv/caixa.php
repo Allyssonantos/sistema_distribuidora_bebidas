@@ -6,9 +6,10 @@
   <title>PDV - Caixa</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
-    .linha { display: flex; gap: 10px; align-items: center; }
+    .linha { display: flex; gap: 10px; align-items: center; flex-wrap:wrap; }
     input { padding: 10px; width: 320px; }
     button { padding: 10px 14px; cursor: pointer; }
+    button:disabled { opacity:.5; cursor:not-allowed; }
     table { width: 100%; border-collapse: collapse; margin-top: 15px; }
     th, td { border-bottom: 1px solid #ddd; padding: 10px; text-align: left; }
     .right { text-align: right; }
@@ -16,6 +17,15 @@
     .sugestoes { border: 1px solid #ddd; max-width: 520px; }
     .sugestoes div { padding: 8px 10px; cursor: pointer; }
     .sugestoes div:hover { background: #f2f2f2; }
+
+    .caixaBoxOk{
+      background:#e7f7ed; padding:12px 14px; border-radius:8px; margin-bottom:15px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .caixaBoxWarn{
+      background:#fff3cd; padding:12px 14px; border-radius:8px; margin-bottom:15px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
   </style>
 </head>
 <body>
@@ -46,10 +56,78 @@
 
 <div class="total">Total: R$ <span id="total">0,00</span></div>
 
+<!-- AÇÕES -->
+<div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+  <button id="btnFinalizar" onclick="abrirFinalizar()" style="padding:12px 18px; font-weight:bold;">
+    ✅ Finalizar Venda
+  </button>
+  <button onclick="limparCarrinho()" style="padding:12px 18px;">
+    🧹 Limpar
+  </button>
+</div>
+
+<!-- MODAL FINALIZAR -->
+<div id="modal" style="
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);
+  align-items:center; justify-content:center; padding:20px;
+">
+  <div style="background:#fff; width:520px; max-width:100%; border-radius:10px; padding:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0;">Finalizar venda</h3>
+      <button onclick="fecharModal()">X</button>
+    </div>
+
+    <hr>
+
+    <div style="margin:10px 0;">
+      <label><b>Forma de pagamento</b></label><br>
+      <select id="pagamento" onchange="atualizarPagamento()" style="padding:10px; width:100%; margin-top:6px;">
+        <option value="PIX">PIX</option>
+        <option value="DINHEIRO">Dinheiro</option>
+        <option value="CARTAO_DEBITO">Cartão Débito</option>
+        <option value="CARTAO_CREDITO">Cartão Crédito</option>
+        <option value="OUTROS">Outros</option>
+      </select>
+    </div>
+
+    <div id="blocoDinheiro" style="display:none; margin:10px 0;">
+      <label><b>Valor recebido (Dinheiro)</b></label><br>
+      <input id="recebido" type="number" step="0.01" min="0" oninput="calcularTroco()"
+        style="padding:10px; width:100%; margin-top:6px;" placeholder="Ex: 50,00" />
+      <div style="margin-top:8px;">
+        <b>Troco:</b> R$ <span id="troco">0,00</span>
+      </div>
+    </div>
+
+    <div style="margin-top:12px; font-size:18px;">
+      <b>Total:</b> R$ <span id="totalModal">0,00</span>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:14px; justify-content:flex-end;">
+      <button onclick="fecharModal()" style="padding:10px 14px;">Cancelar</button>
+      <button onclick="confirmarVenda()" style="padding:10px 14px; font-weight:bold;">
+        Confirmar
+      </button>
+    </div>
+
+  </div>
+</div>
+
 <script>
+  // ========= CONFIG =========
+  const CAIXA_ID = 1; // <- se tiver mais caixas, muda aqui
+  let CAIXA_ABERTO = false;
+  let CAIXA_SESSAO_ID = null;
+
+  // ========= CARRINHO =========
   const carrinho = [];
 
-  function fmt(v){ return v.toFixed(2).replace(".", ","); }
+  function fmt(v){ return Number(v||0).toFixed(2).replace(".", ","); }
+
+  function setBotoesVenda(habilitar){
+    const btnFinalizar = document.getElementById("btnFinalizar");
+    btnFinalizar.disabled = !habilitar;
+  }
 
   async function buscar(){
     const q = document.getElementById("busca").value.trim();
@@ -141,67 +219,13 @@
   document.getElementById("busca").addEventListener("keydown", (e) => {
     if(e.key === "Enter") buscar();
   });
-</script>
 
-<!-- AÇÕES -->
-<div style="margin-top:16px; display:flex; gap:10px;">
-  <button onclick="abrirFinalizar()" style="padding:12px 18px; font-weight:bold;">
-    ✅ Finalizar Venda
-  </button>
-  <button onclick="limparCarrinho()" style="padding:12px 18px;">
-    🧹 Limpar
-  </button>
-</div>
-
-<!-- MODAL FINALIZAR -->
-<div id="modal" style="
-  display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);
-  align-items:center; justify-content:center; padding:20px;
-">
-  <div style="background:#fff; width:520px; max-width:100%; border-radius:10px; padding:16px;">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <h3 style="margin:0;">Finalizar venda</h3>
-      <button onclick="fecharModal()">X</button>
-    </div>
-
-    <hr>
-
-    <div style="margin:10px 0;">
-      <label><b>Forma de pagamento</b></label><br>
-      <select id="pagamento" onchange="atualizarPagamento()" style="padding:10px; width:100%; margin-top:6px;">
-        <option value="PIX">PIX</option>
-        <option value="DINHEIRO">Dinheiro</option>
-        <option value="CARTAO_DEBITO">Cartão Débito</option>
-        <option value="CARTAO_CREDITO">Cartão Crédito</option>
-        <option value="OUTROS">Outros</option>
-      </select>
-    </div>
-
-    <div id="blocoDinheiro" style="display:none; margin:10px 0;">
-      <label><b>Valor recebido (Dinheiro)</b></label><br>
-      <input id="recebido" type="number" step="0.01" min="0" oninput="calcularTroco()"
-        style="padding:10px; width:100%; margin-top:6px;" placeholder="Ex: 50,00" />
-      <div style="margin-top:8px;">
-        <b>Troco:</b> R$ <span id="troco">0,00</span>
-      </div>
-    </div>
-
-    <div style="margin-top:12px; font-size:18px;">
-      <b>Total:</b> R$ <span id="totalModal">0,00</span>
-    </div>
-
-    <div style="display:flex; gap:10px; margin-top:14px; justify-content:flex-end;">
-      <button onclick="fecharModal()" style="padding:10px 14px;">Cancelar</button>
-      <button onclick="confirmarVenda()" style="padding:10px 14px; font-weight:bold;">
-        Confirmar
-      </button>
-    </div>
-
-  </div>
-</div>
-
-<script>
+  // ========= MODAL =========
   function abrirFinalizar(){
+    if(!CAIXA_ABERTO){
+      alert("Caixa está FECHADO. Abra o caixa para vender.");
+      return;
+    }
     if(carrinho.length === 0){
       alert("Carrinho vazio.");
       return;
@@ -245,99 +269,159 @@
   }
 
   async function confirmarVenda(){
-  const forma = document.getElementById("pagamento").value;
-  const total = parseFloat(document.getElementById("total").textContent.replace(",", ".") || "0");
-
-  let recebido = total;
-  let troco = 0;
-
-  if(forma === "DINHEIRO"){
-    recebido = parseFloat((document.getElementById("recebido").value || "0"));
-    if(recebido < total){
-      alert("Valor recebido não pode ser menor que o total.");
+    if(!CAIXA_ABERTO){
+      alert("Caixa está FECHADO. Abra o caixa para vender.");
       return;
     }
-    troco = recebido - total;
+
+    const forma = document.getElementById("pagamento").value;
+    const total = parseFloat(document.getElementById("total").textContent.replace(",", ".") || "0");
+
+    let recebido = total;
+    let troco = 0;
+
+    if(forma === "DINHEIRO"){
+      recebido = parseFloat((document.getElementById("recebido").value || "0"));
+      if(recebido < total){
+        alert("Valor recebido não pode ser menor que o total.");
+        return;
+      }
+      troco = recebido - total;
+    }
+
+    const payload = {
+      caixa_id: CAIXA_ID, // ✅ importante
+      forma_pagamento: forma,
+      valor_recebido: recebido,
+      troco: troco,
+      itens: carrinho.map(i => ({ id: i.id, qtd: i.qtd }))
+    };
+
+    try {
+      const res = await fetch("../api/vendas_salvar.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+
+      if(!json.ok){
+        alert("Erro ao salvar venda: " + (json.erro || "desconhecido"));
+        return;
+      }
+
+      fecharModal();
+      limparCarrinho();
+
+      window.open("imprimir.php?id=" + json.venda_id, "_blank");
+
+    } catch (err) {
+      alert("Falha na comunicação com o servidor.");
+      console.error(err);
+    }
   }
 
-  const payload = {
-    forma_pagamento: forma,
-    valor_recebido: recebido,
-    troco: troco,
-    itens: carrinho.map(i => ({ id: i.id, qtd: i.qtd }))
-  };
+  // ========= CAIXA (ABRIR/STATUS) =========
+  async function verificarCaixa(){
+    const box = document.getElementById("boxCaixa");
 
-  try {
-    const res = await fetch("../api/vendas_salvar.php", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+    try{
+      const res = await fetch(`../api/caixa_status.php?caixa_id=${CAIXA_ID}`);
+      const json = await res.json();
+
+      if(!json.ok){
+        CAIXA_ABERTO = false;
+        CAIXA_SESSAO_ID = null;
+        setBotoesVenda(false);
+        box.innerHTML = `<div class="caixaBoxWarn">⚠️ Erro ao verificar caixa: ${json.erro || "desconhecido"}</div>`;
+        return;
+      }
+
+      if(json.aberto){
+        CAIXA_ABERTO = true;
+        CAIXA_SESSAO_ID = json.sessao_id || null;
+        setBotoesVenda(true);
+
+        box.innerHTML = `
+          <div class="caixaBoxOk">
+            <div>🟢 Caixa ABERTO</div>
+            <button onclick="fecharCaixa()">Fechar caixa</button>
+          </div>
+        `;
+      }else{
+        CAIXA_ABERTO = false;
+        CAIXA_SESSAO_ID = null;
+        setBotoesVenda(false);
+
+        box.innerHTML = `
+          <div class="caixaBoxWarn">
+            <div>⚠️ Caixa FECHADO (Caixa: ${CAIXA_ID})</div>
+            <button onclick="abrirCaixa()">Abrir caixa</button>
+          </div>
+        `;
+      }
+    }catch(e){
+      console.error(e);
+      CAIXA_ABERTO = false;
+      CAIXA_SESSAO_ID = null;
+      setBotoesVenda(false);
+      box.innerHTML = `<div class="caixaBoxWarn">⚠️ Falha ao verificar caixa.</div>`;
+    }
+  }
+
+  async function abrirCaixa(){
+    const valor = prompt("Valor inicial do caixa (troco):", "0");
+    if(valor === null) return;
+
+    const res = await fetch("../api/caixa_abrir.php",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        caixa_id: CAIXA_ID,
+        troco_inicial: valor
+      })
     });
 
     const json = await res.json();
 
     if(!json.ok){
-        alert("Erro ao salvar venda: " + (json.erro || "desconhecido"));
-        return;
+      alert("Erro: " + (json.erro || "desconhecido"));
+      return;
     }
 
-    alert("Venda salva! ID: " + json.venda_id);
-
-    fecharModal();
-    limparCarrinho();
-
-    window.open("imprimir.php?id=" + json.venda_id, "_blank");
-
-  } catch (err) {
-    alert("Falha na comunicação com o servidor.");
-    console.error(err);
+    // ✅ atualiza o status na hora (sem F5)
+    await verificarCaixa();
   }
-  }
-  
-  async function verificarCaixa(){
-  const res = await fetch("../api/caixa_status.php");
-  const json = await res.json();
 
-  const box = document.getElementById("boxCaixa");
+  async function fecharCaixa(){
+    if(!confirm("Deseja realmente FECHAR o caixa?"))
+      return;
 
-  if(json.aberto){
-      box.innerHTML = "🟢 Caixa ABERTO";
-  }else{
-      box.innerHTML = `
-        <div style="background:#fff3cd;padding:15px;border-radius:8px;">
-          ⚠️ Caixa fechado<br><br>
-          <button onclick="abrirCaixa()">Abrir caixa</button>
-        </div>
-      `;
-  }
+    const res = await fetch("../api/caixa_fechar.php",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ caixa_id: CAIXA_ID })
+    });
+
+    const json = await res.json();
+
+    if(!json.ok){
+      alert("Erro: " + json.erro);
+      return;
+    }
+
+    alert(
+      "Caixa fechado!\n\n" +
+      "Total Geral: R$ " + fmt(json.totais.geral || 0) + "\n" +
+      "Vendas: " + (json.totais.vendas || 0)
+    );
+
+    verificarCaixa(); // atualiza tela
 }
 
-async function abrirCaixa(){
-  const valor = prompt("Valor inicial do caixa (troco):","0");
-  if(valor===null) return;
-
-  const res = await fetch("../api/caixa_abrir.php",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({
-      caixa_id:1,
-      valor_inicial:valor
-    })
-  });
-
-  const json = await res.json();
-
-  if(!json.ok){
-    alert(json.erro);
-    return;
-  }
-
-  alert("Caixa aberto!");
+  // init
   verificarCaixa();
-  }
-
-  verificarCaixa();
-
 </script>
 
 </body>
