@@ -73,7 +73,7 @@ function pagamentoLabel($p){
 
 <div class="cupom">
   <div class="center">
-    <b>DISTRIBUIDORA DO PARCEIRO</b><br>
+    <b>ADORA BEBIDAS</b><br>
     <span class="small">CNPJ: 00.000.000/0000-00</span><br>
     <span class="small">Endereço: sua rua, nº 0</span><br>
   </div>

@@ -9,28 +9,23 @@ $inicio = $de . " 00:00:00";
 $fim    = $ate . " 23:59:59";
 
 try {
-  // 🔥 IMPORTANTE:
-  // Ajuste os nomes das colunas abaixo se no seu banco estiver diferente:
-  // vendas.data_venda / vendas.criado_em / vendas.data
-  // vendas.forma_pagamento / vendas.pagamento
-  // vendas.status (se não tiver, remova esse filtro)
 
-  // 1) VENDAS (faturamento)
+  // 🔵 FATURAMENTO (VENDAS FINALIZADAS)
   $stmtV = $pdo->prepare("
     SELECT
       COALESCE(SUM(total),0) AS faturamento,
       COALESCE(SUM(CASE WHEN forma_pagamento='PIX' THEN total ELSE 0 END),0) AS pix,
       COALESCE(SUM(CASE WHEN forma_pagamento='DINHEIRO' THEN total ELSE 0 END),0) AS dinheiro,
-      COALESCE(SUM(CASE WHEN forma_pagamento IN ('CARTAO','CARTAO_DEBITO','CARTAO_CREDITO') THEN total ELSE 0 END),0) AS cartoes,
+      COALESCE(SUM(CASE WHEN forma_pagamento IN ('CARTAO_DEBITO','CARTAO_CREDITO') THEN total ELSE 0 END),0) AS cartoes,
       COUNT(*) AS qtd_vendas
     FROM vendas
     WHERE data_venda BETWEEN :ini AND :fim
-      AND (status IS NULL OR status = 'FINALIZADA')
+      AND status = 'FINALIZADA'
   ");
   $stmtV->execute(["ini"=>$inicio, "fim"=>$fim]);
-  $v = $stmtV->fetch() ?: [];
+  $v = $stmtV->fetch();
 
-  // 2) COMPRAS (entrada de estoque)
+  // 🟢 COMPRAS (ENTRADA DE ESTOQUE)
   $stmtC = $pdo->prepare("
     SELECT
       COALESCE(SUM(quantidade),0) AS qtd_compra,
@@ -40,9 +35,9 @@ try {
       AND origem = 'COMPRA'
   ");
   $stmtC->execute(["ini"=>$inicio, "fim"=>$fim]);
-  $c = $stmtC->fetch() ?: [];
+  $c = $stmtC->fetch();
 
-  // 3) PERDAS (prejuízo por custo)
+  // 🔴 PERDAS (QUEBRA/VENCIDO)
   $stmtP = $pdo->prepare("
     SELECT
       COALESCE(SUM(m.quantidade),0) AS qtd_perdas,
@@ -53,32 +48,30 @@ try {
       AND m.origem = 'PERDA'
   ");
   $stmtP->execute(["ini"=>$inicio, "fim"=>$fim]);
-  $p = $stmtP->fetch() ?: [];
+  $p = $stmtP->fetch();
 
-  $faturamento = (float)($v["faturamento"] ?? 0);
-  $valorCompras = (float)($c["valor_compras"] ?? 0);
-  $valorPerdas = (float)($p["valor_perdas"] ?? 0);
+  $faturamento  = (float)$v["faturamento"];
+  $valorCompras = (float)$c["valor_compras"];
+  $valorPerdas  = (float)$p["valor_perdas"];
 
   $lucroBruto = $faturamento - $valorCompras - $valorPerdas;
-  $margem = ($faturamento > 0) ? ($lucroBruto / $faturamento) * 100 : 0;
+  $margem = $faturamento > 0 ? ($lucroBruto / $faturamento) * 100 : 0;
 
   echo json_encode([
     "ok" => true,
-    "de" => $de,
-    "ate" => $ate,
     "vendas" => [
       "faturamento" => $faturamento,
-      "pix" => (float)($v["pix"] ?? 0),
-      "dinheiro" => (float)($v["dinheiro"] ?? 0),
-      "cartoes" => (float)($v["cartoes"] ?? 0),
-      "qtd_vendas" => (int)($v["qtd_vendas"] ?? 0),
+      "pix" => (float)$v["pix"],
+      "dinheiro" => (float)$v["dinheiro"],
+      "cartoes" => (float)$v["cartoes"],
+      "qtd_vendas" => (int)$v["qtd_vendas"],
     ],
     "compras" => [
-      "qtd" => (float)($c["qtd_compra"] ?? 0),
+      "qtd" => (float)$c["qtd_compra"],
       "valor" => $valorCompras
     ],
     "perdas" => [
-      "qtd" => (float)($p["qtd_perdas"] ?? 0),
+      "qtd" => (float)$p["qtd_perdas"],
       "valor" => $valorPerdas
     ],
     "lucro" => [
@@ -89,5 +82,5 @@ try {
 
 } catch (Exception $e) {
   http_response_code(400);
-  echo json_encode(["ok"=>false, "erro"=>$e->getMessage()]);
+  echo json_encode(["ok"=>false,"erro"=>$e->getMessage()]);
 }

@@ -35,6 +35,7 @@
   <a href="relatorios.php">📊 Relatório de Vendas</a>
   <a href="estoque_relatorios.php">📦 Relatório de Estoque</a>
   <a href="estoque.php">📥 Movimentar Estoque</a>
+  <a href="categorias.php">🏷️ Categorias</a>
   <a href="lucro.php">📊 Admin - Lucro</a>
 </div>
 
