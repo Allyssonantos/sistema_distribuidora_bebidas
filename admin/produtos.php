@@ -32,9 +32,10 @@
   <label><input type="checkbox" id="somenteLow" onchange="carregar()"> Mostrar acabando</label>
   <button onclick="carregar()">🔎 Buscar</button>
   <button onclick="novoProduto()">➕ Novo produto</button>
-  <a href="relatorios.php">📊 Relatórios</a>
-   <a href="produtos.php">📦 Produtos</a>
+  <a href="relatorios.php">📊 Relatório de Vendas</a>
   <a href="estoque_relatorios.php">📦 Relatório de Estoque</a>
+  <a href="estoque.php">📥 Movimentar Estoque</a>
+  <a href="lucro.php">📊 Admin - Lucro</a>
 </div>
 
 <table>

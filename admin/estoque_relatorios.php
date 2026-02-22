@@ -32,26 +32,50 @@
   <button onclick="carregar()">Atualizar</button>
 
   <a href="estoque.php">📥 Movimentar Estoque</a>
-  <a href="produtos.php">📦 Produtos</a>
+  <a href="produtos.php">📦 Admin - Produtos</a>
   <a href="relatorios.php">📊 Vendas</a>
+  <a href="lucro.php">📊 Admin - Lucro</a>
 </div>
 
 <div class="cards">
+  <div class="cards" style="grid-template-columns:repeat(6,1fr);">
   <div class="card">
-    <div><span class="badge bcompra">COMPRA</span> <b>Total que entrou</b></div>
-    <div style="font-size:26px; margin-top:6px;" id="t_compra">0</div>
-    <div style="color:#666; font-size:12px;">(soma das quantidades)</div>
+    <div><span class="badge bcompra">COMPRA</span> <b>Qtd entrada</b></div>
+    <div style="font-size:22px; margin-top:6px;" id="q_compra">0</div>
   </div>
+
   <div class="card">
-    <div><span class="badge bperda">PERDA</span> <b>Total de perdas</b></div>
-    <div style="font-size:26px; margin-top:6px;" id="t_perda">0</div>
-    <div style="color:#666; font-size:12px;">(soma das quantidades)</div>
+    <div><span class="badge bcompra">COMPRA</span> <b>R$ compras</b></div>
+    <div style="font-size:22px; margin-top:6px;" id="v_compra">R$ 0,00</div>
   </div>
+
   <div class="card">
-    <div><span class="badge bajuste">INVENTÁRIO</span> <b>Total de ajustes</b></div>
-    <div style="font-size:26px; margin-top:6px;" id="t_ajuste">0</div>
-    <div style="color:#666; font-size:12px;">(soma das quantidades)</div>
+    <div><span class="badge bperda">PERDA</span> <b>Qtd perdas</b></div>
+    <div style="font-size:22px; margin-top:6px;" id="q_perda">0</div>
   </div>
+
+  <div class="card">
+    <div><span class="badge bperda">PERDA</span> <b>R$ perdas</b></div>
+    <div style="font-size:22px; margin-top:6px;" id="v_perda">R$ 0,00</div>
+  </div>
+
+  <div class="card">
+    <div><span class="badge bajuste">INVENTÁRIO</span> <b>Qtd ajustes</b></div>
+    <div style="font-size:22px; margin-top:6px;" id="q_ajuste">0</div>
+  </div>
+
+  <div class="card">
+    <div><span class="badge bajuste">INVENTÁRIO</span> <b>R$ ajustes</b></div>
+    <div style="font-size:22px; margin-top:6px;" id="v_ajuste">R$ 0,00</div>
+    <div style="font-size:12px; color:#666; margin-top:6px;">
+      ↑ <span id="v_aj_pos">R$ 0,00</span> • ↓ <span id="v_aj_neg">R$ 0,00</span>
+    </div>
+  </div>
+</div>
+
+<style>
+  @media(max-width:1200px){ .cards{grid-template-columns:repeat(2,1fr) !important;} }
+</style>
 </div>
 
 <table>
@@ -97,9 +121,16 @@
       return;
     }
 
-    document.getElementById("t_compra").textContent = fmtQtd(json.totais.compra);
-    document.getElementById("t_perda").textContent = fmtQtd(json.totais.perda);
-    document.getElementById("t_ajuste").textContent = fmtQtd(json.totais.ajuste);
+    document.getElementById("q_compra").textContent = fmtQtd(json.totais_qtd.compra);
+    document.getElementById("q_perda").textContent  = fmtQtd(json.totais_qtd.perda);
+    document.getElementById("q_ajuste").textContent = fmtQtd(json.totais_qtd.ajuste);
+
+    document.getElementById("v_compra").textContent = brl(json.totais_valor.compra);
+    document.getElementById("v_perda").textContent  = brl(json.totais_valor.perda);
+    document.getElementById("v_ajuste").textContent = brl(json.totais_valor.ajuste);
+
+    document.getElementById("v_aj_pos").textContent = brl(json.totais_valor.ajuste_pos);
+    document.getElementById("v_aj_neg").textContent = brl(json.totais_valor.ajuste_neg);
 
     const tbody = document.getElementById("lista");
     tbody.innerHTML = "";

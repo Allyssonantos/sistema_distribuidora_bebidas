@@ -26,8 +26,9 @@
   <label>De: <input type="date" id="de"></label>
   <label>Até: <input type="date" id="ate"></label>
   <button onclick="carregar()">Atualizar</button>
-  <a href="produtos.php">📦 Produtos</a>
+  <a href="produtos.php">📦 Admin - Produtos</a>
   <a href="estoque_relatorios.php">📦 Relatório de Estoque</a>
+  <a href="lucro.php">📊 Admin - Lucro</a>
 </div>
 
 <div class="cards">

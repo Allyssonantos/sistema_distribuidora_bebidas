@@ -23,9 +23,10 @@
 
 <h2>📥 Admin - Movimentar Estoque</h2>
 <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-  <a href="produtos.php">📦 Produtos</a>
-  <a href="relatorios.php">📊 Relatórios</a>
+  <a href="produtos.php">📦 Admin - Produtos</a>
+  <a href="relatorios.php">📊 Relatório de Vendas</a>
   <a href="estoque_relatorios.php">📦 Relatório de Estoque</a>
+  <a href="lucro.php">📊 Admin - Lucro</a>
 </div>
 
 <div class="card">

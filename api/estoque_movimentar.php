@@ -73,22 +73,23 @@ try {
 
   // registra movimentação
   $stmtM = $pdo->prepare("
-    INSERT INTO mov_estoque (produto_id, tipo, quantidade, valor_unit, origem, observacao, usuario_id)
-    VALUES (:produto_id, :tipo, :quantidade, :valor_unit, :origem, :obs, :usuario_id)
+  INSERT INTO mov_estoque (produto_id, tipo, quantidade, delta, valor_unit, origem, observacao, usuario_id)
+  VALUES (:produto_id, :tipo, :quantidade, :delta, :valor_unit, :origem, :obs, :usuario_id)
   ");
 
-  // quantidade registrada: sempre positiva, e o tipo/origem explica
   $qtdRegistro = abs($delta);
 
   $stmtM->execute([
-    ":produto_id" => $produto_id,
-    ":tipo" => $movTipo,
-    ":quantidade" => $qtdRegistro,
-    ":valor_unit" => ($valorUnit === "" || $valorUnit === null) ? null : (float)$valorUnit,
-    ":origem" => $origem,
-    ":obs" => $observacao === "" ? null : $observacao,
-    ":usuario_id" => null
+    "produto_id" => $produto_id,
+    "tipo" => $movTipo,
+    "quantidade" => $qtdRegistro,
+    "delta" => $delta,
+    "valor_unit" => ($valorUnit === "" || $valorUnit === null) ? null : (float)$valorUnit,
+    "origem" => $origem,
+    "obs" => $observacao === "" ? null : $observacao,
+    "usuario_id" => null
   ]);
+
 
   $pdo->commit();
 
