@@ -242,35 +242,56 @@
     render();
   }
 
-  function confirmarVenda(){
-    const forma = document.getElementById("pagamento").value;
-    const total = parseFloat(document.getElementById("total").textContent.replace(",", ".") || "0");
+  async function confirmarVenda(){
+  const forma = document.getElementById("pagamento").value;
+  const total = parseFloat(document.getElementById("total").textContent.replace(",", ".") || "0");
 
-    let recebido = total;
-    let troco = 0;
+  let recebido = total;
+  let troco = 0;
 
-    if(forma === "DINHEIRO"){
-      recebido = parseFloat((document.getElementById("recebido").value || "0"));
-      if(recebido < total){
-        alert("Valor recebido não pode ser menor que o total.");
-        return;
-      }
-      troco = recebido - total;
+  if(forma === "DINHEIRO"){
+    recebido = parseFloat((document.getElementById("recebido").value || "0"));
+    if(recebido < total){
+      alert("Valor recebido não pode ser menor que o total.");
+      return;
+    }
+    troco = recebido - total;
+  }
+
+  const payload = {
+    forma_pagamento: forma,
+    valor_recebido: recebido,
+    troco: troco,
+    itens: carrinho.map(i => ({ id: i.id, qtd: i.qtd }))
+  };
+
+  try {
+    const res = await fetch("../api/vendas_salvar.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+
+    if(!json.ok){
+      alert("Erro ao salvar venda: " + (json.erro || "desconhecido"));
+      return;
     }
 
-    // Por enquanto só confirma na tela
-    // Próximo passo: enviar para o backend (PHP) gravar no banco e dar baixa no estoque
-    alert(
-      "Venda confirmada!\n" +
-      "Pagamento: " + forma + "\n" +
-      "Total: R$ " + fmt(total) + "\n" +
-      "Recebido: R$ " + fmt(recebido) + "\n" +
-      "Troco: R$ " + fmt(troco)
-    );
+    alert("Venda salva! ID: " + json.venda_id);
 
     fecharModal();
     limparCarrinho();
+
+    // Próximo passo: abrir impressão
+    // window.open("imprimir.php?id=" + json.venda_id, "_blank");
+
+  } catch (err) {
+    alert("Falha na comunicação com o servidor.");
+    console.error(err);
   }
+}
 </script>
 
 </body>
