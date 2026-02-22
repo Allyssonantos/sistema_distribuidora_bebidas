@@ -32,6 +32,7 @@
   <a href="estoque.php">📥 Movimentar Estoque</a>
   <a href="estoque_relatorios.php">📦 Relatório de Estoque</a>
   <a href="relatorios.php">📊 Vendas</a>
+   <a href="fechamento_caixa.php">🧾 Fechamento de Caixa</a>
 </div>
 
 <div class="cards">

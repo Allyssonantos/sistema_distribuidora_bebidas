@@ -81,14 +81,54 @@ try {
   if ($forma === "DINHEIRO" && $recebido < $total) {
     throw new Exception("Valor recebido menor que o total");
   }
+  
+  // =============================
+// BUSCAR SESSÃO DE CAIXA ABERTA
+// =============================
+  $caixaId = (int)($data["caixa_id"] ?? 1); // depois vamos pegar do PDV
+
+  $st = $pdo->prepare("
+      SELECT id FROM caixa_sessoes
+      WHERE caixa_id = :c AND status = 'ABERTO'
+      ORDER BY id DESC LIMIT 1
+  ");
+  $st->execute(["c"=>$caixaId]);
+
+  $sessaoId = (int)$st->fetchColumn();
+
+  if($sessaoId <= 0){
+      throw new Exception("Caixa está FECHADO. Abra o caixa antes de vender.");
+  }
+
 
   // Salva venda
   $stmtVenda = $pdo->prepare("
-    INSERT INTO vendas (caixa_id, usuario_id, forma_pagamento, subtotal, desconto, total, valor_recebido, troco, status)
-    VALUES (:caixa_id, :usuario_id, :forma, :subtotal, :desconto, :total, :recebido, :troco, 'FINALIZADA')
+    INSERT INTO vendas (
+    caixa_id,
+    caixa_sessao_id,
+    usuario_id,
+    forma_pagamento,
+    subtotal,
+    desconto,
+    total,
+    valor_recebido,
+    troco
+)
+VALUES (
+    :caixa_id,
+    :caixa_sessao_id,
+    :usuario_id,
+    :forma,
+    :subtotal,
+    :desconto,
+    :total,
+    :recebido,
+    :troco
+)
   ");
   $stmtVenda->execute([
     ":caixa_id" => $caixaId,
+    ":caixa_sessao_id" => $sessaoId,
     ":usuario_id" => $usuarioId,
     ":forma" => $forma,
     ":subtotal" => $subtotal,

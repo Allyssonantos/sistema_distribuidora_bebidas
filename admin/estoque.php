@@ -27,6 +27,7 @@
   <a href="relatorios.php">📊 Relatório de Vendas</a>
   <a href="estoque_relatorios.php">📦 Relatório de Estoque</a>
   <a href="lucro.php">📊 Admin - Lucro</a>
+  <a href="fechamento_caixa.php">🧾 Fechamento de Caixa</a>
 </div>
 
 <div class="card">

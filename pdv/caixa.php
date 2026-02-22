@@ -22,6 +22,8 @@
 
 <h2>🧾 PDV - Caixa</h2>
 
+<div id="boxCaixa" style="margin-bottom:15px;"></div>
+
 <div class="linha">
   <input id="busca" placeholder="Digite nome ou código de barras..." autofocus />
   <button onclick="buscar()">Buscar</button>
@@ -290,7 +292,52 @@
     alert("Falha na comunicação com o servidor.");
     console.error(err);
   }
+  }
+  
+  async function verificarCaixa(){
+  const res = await fetch("../api/caixa_status.php");
+  const json = await res.json();
+
+  const box = document.getElementById("boxCaixa");
+
+  if(json.aberto){
+      box.innerHTML = "🟢 Caixa ABERTO";
+  }else{
+      box.innerHTML = `
+        <div style="background:#fff3cd;padding:15px;border-radius:8px;">
+          ⚠️ Caixa fechado<br><br>
+          <button onclick="abrirCaixa()">Abrir caixa</button>
+        </div>
+      `;
+  }
 }
+
+async function abrirCaixa(){
+  const valor = prompt("Valor inicial do caixa (troco):","0");
+  if(valor===null) return;
+
+  const res = await fetch("../api/caixa_abrir.php",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({
+      caixa_id:1,
+      valor_inicial:valor
+    })
+  });
+
+  const json = await res.json();
+
+  if(!json.ok){
+    alert(json.erro);
+    return;
+  }
+
+  alert("Caixa aberto!");
+  verificarCaixa();
+  }
+
+  verificarCaixa();
+
 </script>
 
 </body>

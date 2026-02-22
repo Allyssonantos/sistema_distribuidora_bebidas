@@ -37,6 +37,7 @@
   <a href="estoque.php">📥 Movimentar Estoque</a>
   <a href="categorias.php">🏷️ Categorias</a>
   <a href="lucro.php">📊 Admin - Lucro</a>
+   <a href="fechamento_caixa.php">🧾 Fechamento de Caixa</a>
 </div>
 
 <table>
