@@ -275,8 +275,8 @@
     const json = await res.json();
 
     if(!json.ok){
-      alert("Erro ao salvar venda: " + (json.erro || "desconhecido"));
-      return;
+        alert("Erro ao salvar venda: " + (json.erro || "desconhecido"));
+        return;
     }
 
     alert("Venda salva! ID: " + json.venda_id);
@@ -284,8 +284,7 @@
     fecharModal();
     limparCarrinho();
 
-    // Próximo passo: abrir impressão
-    // window.open("imprimir.php?id=" + json.venda_id, "_blank");
+    window.open("imprimir.php?id=" + json.venda_id, "_blank");
 
   } catch (err) {
     alert("Falha na comunicação com o servidor.");
