@@ -371,28 +371,77 @@
   }
 
   async function abrirCaixa(){
-    const valor = prompt("Valor inicial do caixa (troco):", "0");
+    const valor = prompt("Valor inicial do caixa (troco):", "0.00");
     if(valor === null) return;
 
-    const res = await fetch("../api/caixa_abrir.php",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({
-        caixa_id: CAIXA_ID,
-        troco_inicial: valor
-      })
-    });
-
-    const json = await res.json();
-
-    if(!json.ok){
-      alert("Erro: " + (json.erro || "desconhecido"));
-      return;
+    // Converter para número antes de enviar para evitar erros de string
+    const valorNum = parseFloat(valor.replace(",", "."));
+    if(isNaN(valorNum)) {
+        alert("Por favor, insira um valor numérico válido.");
+        return;
     }
 
-    // ✅ atualiza o status na hora (sem F5)
-    await verificarCaixa();
-  }
+    try {
+        const res = await fetch("../api/caixa_abrir.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                caixa_id: CAIXA_ID,
+                valor_inicial: valorNum // Nome alinhado com a API
+            })
+        });
+
+        const json = await res.json();
+
+        if(!json.ok){
+            alert("Erro: " + (json.erro || "Erro desconhecido ao abrir."));
+            return;
+        }
+
+        // Esta chamada atualiza o HTML e libera os botões sem F5
+        await verificarCaixa(); 
+        alert("Caixa aberto com sucesso!");
+
+    } catch(err) {
+        console.error(err);
+        alert("Falha na comunicação com o servidor.");
+    }
+}
+
+// Garanta que a função verificarCaixa atualize o estado global
+async function verificarCaixa(){
+    const box = document.getElementById("boxCaixa");
+    try {
+        const res = await fetch(`../api/caixa_status.php?caixa_id=${CAIXA_ID}`);
+        const json = await res.json();
+
+        if(json.ok && json.aberto){
+            CAIXA_ABERTO = true;
+            CAIXA_SESSAO_ID = json.sessao_id;
+            setBotoesVenda(true); // Habilita botões de venda
+
+            box.innerHTML = `
+                <div style="background:#e7f7ed; padding:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; border: 1px solid #c3e6cb;">
+                  <div><strong style="color: #155724;">🟢 Caixa ABERTO</strong> (Sessão #${json.sessao_id})</div>
+                  <button onclick="abrirModalFechar()" style="background:#28a745; color:white; border:none; padding:8px 12px; border-radius:4px;">Fechar caixa</button>
+                </div>
+            `;
+        } else {
+            CAIXA_ABERTO = false;
+            CAIXA_SESSAO_ID = null;
+            setBotoesVenda(false); // Desabilita botões de venda
+
+            box.innerHTML = `
+              <div class="caixaBoxWarn" style="background:#fff3cd; padding:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; border: 1px solid #ffeeba;">
+                <div style="color: #856404;">⚠️ Caixa FECHADO</div>
+                <button onclick="abrirCaixa()" style="background:#ffc107; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;">Abrir caixa agora</button>
+              </div>
+            `;
+        }
+    } catch(e) {
+        box.innerHTML = `<div class="caixaBoxWarn">⚠️ Erro de conexão com o servidor.</div>`;
+    }
+}
 
   async function fecharCaixa(){
     if(!confirm("Deseja realmente FECHAR o caixa?"))
@@ -526,5 +575,73 @@
   </div>
 </div>
 
+<iframe id="iframeImpressao" style="display:none;"></iframe>
+
+<script>
+  // Modifique a função confirmarVenda para o seguinte:
+  async function confirmarVenda() {
+    if(!CAIXA_ABERTO) { alert("Caixa FECHADO."); return; }
+    
+    const forma = document.getElementById("pagamento").value;
+    const total = parseFloat(document.getElementById("total").textContent.replace(",", "."));
+    let recebido = total;
+    let troco = 0;
+
+    if(forma === "DINHEIRO") {
+      recebido = parseFloat(document.getElementById("recebido").value || "0");
+      if(recebido < total) { alert("Valor insuficiente."); return; }
+      troco = recebido - total;
+    }
+
+    const payload = {
+      caixa_id: CAIXA_ID,
+      forma_pagamento: forma,
+      valor_recebido: recebido,
+      troco: troco,
+      itens: carrinho.map(i => ({ id: i.id, qtd: i.qtd }))
+    };
+
+    try {
+      const res = await fetch("../api/vendas_salvar.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+
+      if(!json.ok) { alert("Erro: " + json.erro); return; }
+
+      fecharModal();
+      limparCarrinho();
+
+      // EM VEZ DE window.open, carregamos no iframe oculto
+      document.getElementById("iframeImpressao").src = "imprimir.php?id=" + json.venda_id;
+
+    } catch (err) {
+      alert("Erro de comunicação.");
+    }
+  }
+
+  // Modifique a função confirmarFecharCaixa para o seguinte:
+  async function confirmarFecharCaixa() {
+    if(sessaoAbertaId <= 0) return;
+    const obs = document.getElementById("obsFechamento").value.trim();
+
+    const res = await fetch("../api/caixa_fechar.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessao_id: sessaoAbertaId, obs })
+    });
+
+    const json = await res.json();
+    if(!json.ok) { alert(json.erro); return; }
+
+    fecharModalFechar();
+    await verificarCaixa();
+
+    // CARREGA O RESUMO NO IFRAME OCULTO
+    document.getElementById("iframeImpressao").src = "imprimir_fechamento.php?sessao_id=" + json.sessao_id;
+  }
+</script>
 </body>
 </html>

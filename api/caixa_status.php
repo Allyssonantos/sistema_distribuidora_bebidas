@@ -9,10 +9,10 @@ if ($caixa_id <= 0) {
 }
 
 $stmt = $pdo->prepare("
-  SELECT id, aberto_em, troco_inicial
-  FROM caixa_sessoes
-  WHERE caixa_id = ? AND status = 'ABERTO'
-  ORDER BY id DESC
+  SELECT id, aberto_em, troco_inicial 
+  FROM caixa_sessoes 
+  WHERE caixa_id = ? AND status = 'ABERTO' 
+  ORDER BY id DESC 
   LIMIT 1
 ");
 $stmt->execute([$caixa_id]);
@@ -23,5 +23,5 @@ echo json_encode([
   "aberto" => $sessao ? true : false,
   "sessao_id" => $sessao ? (int)$sessao["id"] : null,
   "aberto_em" => $sessao["aberto_em"] ?? null,
-  "troco_inicial" => $sessao["troco_inicial"] ?? null,
+  "troco_inicial" => $sessao ? (float)$sessao["troco_inicial"] : 0, // Garanta esta linha
 ]);
