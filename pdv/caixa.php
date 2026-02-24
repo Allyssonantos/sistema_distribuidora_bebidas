@@ -344,10 +344,10 @@
         setBotoesVenda(true);
 
         box.innerHTML = `
-          <div class="caixaBoxOk">
-            <div>🟢 Caixa ABERTO</div>
-            <button onclick="fecharCaixa()">Fechar caixa</button>
-          </div>
+            <div style="background:#e7f7ed;padding:15px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;">
+              <div>🟢 Caixa ABERTO</div>
+              <button onclick="abrirModalFechar()">Fechar caixa</button>
+            </div>
         `;
       }else{
         CAIXA_ABERTO = false;
@@ -422,7 +422,109 @@
 
   // init
   verificarCaixa();
+
+  let sessaoAbertaId = 0;
+
+  async function abrirModalFechar(){
+  // pega resumo do caixa aberto
+  const res = await fetch("../api/caixa_resumo.php");
+  const json = await res.json();
+
+  if(!json.ok){
+    alert(json.erro || "Erro ao carregar resumo.");
+    return;
+  }
+  if(!json.aberto){
+    alert("Caixa já está fechado.");
+    verificarCaixa();
+    return;
+  }
+
+  sessaoAbertaId = json.sessao.id;
+
+  const t = json.totais;
+  const s = json.sessao;
+
+  const brl = (v)=> "R$ " + Number(v||0).toFixed(2).replace(".", ",");
+
+  document.getElementById("resumoBox").innerHTML = `
+    <div><b>Sessão:</b> #${s.id}</div>
+    <div><b>Abertura:</b> ${s.aberto_em}</div>
+    <div style="margin-top:8px;"><b>Troco inicial:</b> ${brl(s.troco_inicial)}</div>
+
+    <hr>
+
+    <div><b>Dinheiro:</b> ${brl(t.dinheiro)}</div>
+    <div><b>PIX:</b> ${brl(t.pix)}</div>
+    <div><b>Cartão Débito:</b> ${brl(t.cartao_debito)}</div>
+    <div><b>Cartão Crédito:</b> ${brl(t.cartao_credito)}</div>
+    <div><b>Outros:</b> ${brl(t.outros)}</div>
+
+    <hr>
+
+    <div style="font-size:16px;"><b>Total Geral:</b> ${brl(t.total_geral)}</div>
+    <div><b>Vendas:</b> ${t.qtd_vendas}</div>
+  `;
+
+  document.getElementById("obsFechamento").value = "";
+  document.getElementById("modalFechar").style.display = "flex";
+  }
+
+  function fecharModalFechar(){
+  document.getElementById("modalFechar").style.display = "none";
+  }
+
+  async function confirmarFecharCaixa(){
+  if(sessaoAbertaId <= 0){
+    alert("Sessão inválida.");
+    return;
+  }
+
+  const obs = document.getElementById("obsFechamento").value.trim();
+
+  const res = await fetch("../api/caixa_fechar.php", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({ sessao_id: sessaoAbertaId, obs })
+  });
+
+  const json = await res.json();
+  if(!json.ok){
+    alert(json.erro || "Erro ao fechar caixa.");
+    return;
+  }
+
+  fecharModalFechar();
+
+  // atualiza status na tela (sem F5)
+  await verificarCaixa();
+
+  // abre impressão automática do resumo
+  window.open("imprimir_fechamento.php?sessao_id=" + json.sessao_id, "_blank");
+  }
 </script>
+
+<div id="modalFechar" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#fff; width:520px; max-width:100%; border-radius:10px; padding:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 style="margin:0;">Resumo do caixa</h3>
+      <button onclick="fecharModalFechar()">X</button>
+    </div>
+    <hr>
+
+    <div id="resumoBox" style="font-size:14px;"></div>
+
+    <div style="margin-top:10px;">
+      <label><b>Observação (opcional)</b></label>
+      <input id="obsFechamento" style="width:100%; padding:10px; margin-top:6px;" placeholder="Ex: conferido com maquininha...">
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:14px; justify-content:flex-end;">
+      <button onclick="fecharModalFechar()">Cancelar</button>
+      <button onclick="confirmarFecharCaixa()" style="font-weight:bold;">Confirmar e imprimir</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
