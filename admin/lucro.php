@@ -2,77 +2,58 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin - Lucro</title>
+  <title>Admin - Lucro Real</title>
   <style>
-    body{font-family:Arial; margin:20px;}
-    .top{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
-    input{padding:10px;}
-    button{padding:10px 14px; cursor:pointer;}
-    .cards{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px;}
-    .card{border:1px solid #eee; border-radius:12px; padding:12px;}
-    .big{font-size:26px; margin-top:6px;}
-    .muted{color:#666; font-size:12px;}
-    @media(max-width:1000px){ .cards{grid-template-columns:repeat(2,1fr);} }
-    @media(max-width:600px){ .cards{grid-template-columns:1fr;} }
-    .subcards{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:10px;}
-    @media(max-width:900px){ .subcards{grid-template-columns:1fr;} }
+    body{font-family:Arial, sans-serif; margin:20px; background-color: #f4f7f6;}
+    .toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px;
+      border: 1px solid #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+    .card { background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .card b { color: #666; font-size: 14px; display: block; margin-bottom: 5px; }
+    .card .val { font-size: 24px; font-weight: bold; display: block; }
+    .card .muted { font-size: 12px; color: #999; margin-top: 5px; }
+    .btn-secondary { background: #f8f9fa; border: 1px solid #ccc; padding: 10px 14px; border-radius: 4px; text-decoration: none; color: #333; font-size: 14px; cursor: pointer; }
+    @media(max-width: 1000px){ .cards { grid-template-columns: repeat(2, 1fr); } }
   </style>
 </head>
 <body>
 
-<h2>📈 Admin - Lucro Real</h2>
+<h2>📈 Relatório de Lucratividade</h2>
 
-<div class="top">
-  <label>De: <input type="date" id="de"></label>
-  <label>Até: <input type="date" id="ate"></label>
-  <button onclick="carregar()">Atualizar</button>
-
-  <a href="produtos.php">📦 Admin - Produtos</a>
-  <a href="estoque.php">📥 Movimentar Estoque</a>
-  <a href="estoque_relatorios.php">📦 Relatório de Estoque</a>
-  <a href="relatorios.php">📊 Vendas</a>
-   <a href="fechamento_caixa.php">🧾 Fechamento de Caixa</a>
+<div class="toolbar">
+  <div class="search-group">
+    <input type="date" id="de"> até <input type="date" id="ate">
+    <button onclick="carregar()" class="btn-secondary">🔎 Atualizar</button>
+  </div>
+  <div class="btn-group">
+    <a href="produtos.php" class="btn-secondary">📦 Produtos</a>
+    <a href="relatorios.php" class="btn-secondary">📊 Vendas</a>
+  </div>
 </div>
 
 <div class="cards">
   <div class="card">
     <b>💰 Faturamento</b>
-    <div class="big" id="fat">R$ 0,00</div>
+    <span class="val" id="fat">R$ 0,00</span>
     <div class="muted" id="qv">0 vendas</div>
   </div>
-
   <div class="card">
-    <b>💸 Compras (Custo)</b>
-    <div class="big" id="comp">R$ 0,00</div>
+    <b>💸 Custo de Compras</b>
+    <span class="val" id="comp" style="color: #d9534f;">R$ 0,00</span>
     <div class="muted" id="qc">Qtd: 0</div>
   </div>
-
   <div class="card">
-    <b>💀 Perdas (Prejuízo)</b>
-    <div class="big" id="perd">R$ 0,00</div>
+    <b>💀 Perdas/Quebras</b>
+    <span class="val" id="perd" style="color: #f0ad4e;">R$ 0,00</span>
     <div class="muted" id="qp">Qtd: 0</div>
   </div>
-
   <div class="card">
     <b>📈 Lucro Bruto</b>
-    <div class="big" id="luc">R$ 0,00</div>
+    <span class="val" id="luc" style="color: #28a745;">R$ 0,00</span>
     <div class="muted" id="marg">Margem: 0%</div>
-  </div>
-</div>
-
-<div class="subcards">
-  <div class="card">
-    <b>PIX</b>
-    <div class="big" id="pix">R$ 0,00</div>
-  </div>
-  <div class="card">
-    <b>Dinheiro</b>
-    <div class="big" id="din">R$ 0,00</div>
-  </div>
-  <div class="card">
-    <b>Cartões</b>
-    <div class="big" id="car">R$ 0,00</div>
   </div>
 </div>
 
@@ -82,40 +63,24 @@
   async function carregar(){
     const de = document.getElementById("de").value;
     const ate = document.getElementById("ate").value;
-
     const res = await fetch(`../api/lucro_relatorio.php?de=${de}&ate=${ate}`);
     const json = await res.json();
 
-    if(!json.ok){
-      alert("Erro: " + (json.erro || "desconhecido"));
-      return;
-    }
+    if(!json.ok) return alert(json.erro);
 
     document.getElementById("fat").textContent = brl(json.vendas.faturamento);
-    document.getElementById("qv").textContent  = `${json.vendas.qtd_vendas} vendas`;
-
+    document.getElementById("qv").textContent = `${json.vendas.qtd_vendas} vendas`;
     document.getElementById("comp").textContent = brl(json.compras.valor);
-    document.getElementById("qc").textContent   = `Qtd: ${json.compras.qtd}`;
-
+    document.getElementById("qc").textContent = `Qtd: ${json.compras.qtd}`;
     document.getElementById("perd").textContent = brl(json.perdas.valor);
-    document.getElementById("qp").textContent   = `Qtd: ${json.perdas.qtd}`;
-
-    document.getElementById("luc").textContent  = brl(json.lucro.bruto);
-    document.getElementById("marg").textContent = `Margem: ${Number(json.lucro.margem_pct||0).toFixed(1).replace(".", ",")}%`;
-
-    document.getElementById("pix").textContent = brl(json.vendas.pix);
-    document.getElementById("din").textContent = brl(json.vendas.dinheiro);
-    document.getElementById("car").textContent = brl(json.vendas.cartoes);
+    document.getElementById("qp").textContent = `Qtd: ${json.perdas.qtd}`;
+    document.getElementById("luc").textContent = brl(json.lucro.bruto);
+    document.getElementById("marg").textContent = `Margem: ${Number(json.lucro.margem_pct).toFixed(1)}%`;
   }
 
-  function hoje(){
-    const d = new Date();
-    const iso = d.toISOString().slice(0,10);
-    document.getElementById("de").value = iso;
-    document.getElementById("ate").value = iso;
-  }
-
-  hoje();
+  const hoje = new Date().toISOString().split('T')[0];
+  document.getElementById("de").value = hoje;
+  document.getElementById("ate").value = hoje;
   carregar();
 </script>
 
