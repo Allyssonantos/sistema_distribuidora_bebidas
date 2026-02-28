@@ -189,30 +189,37 @@
   }
 
   function render(){
-    const tbody = document.getElementById("itens");
-    tbody.innerHTML = "";
-    let total = 0;
+      const tbody = document.getElementById("itens");
+      tbody.innerHTML = "";
+      let total = 0;
 
-    carrinho.forEach(i => {
-      const sub = i.qtd * i.valor;
-      total += sub;
+      carrinho.forEach(i => {
+        const sub = i.qtd * i.valor;
+        total += sub;
 
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${i.nome}</td>
-        <td class="right">
-          <button onclick="alterarQtd(${i.id}, -1)">-</button>
-          <b style="margin:0 8px">${i.qtd}</b>
-          <button onclick="alterarQtd(${i.id}, 1)">+</button>
-        </td>
-        <td class="right">R$ ${fmt(i.valor)}</td>
-        <td class="right">R$ ${fmt(sub)}</td>
-        <td class="right"><button onclick="remover(${i.id})">Remover</button></td>
-      `;
-      tbody.appendChild(tr);
-    });
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${i.nome}</td>
+          <td class="right">
+            <button onclick="alterarQtd(${i.id}, -1)">-</button>
+            
+            <input type="number" 
+                  value="${i.qtd}" 
+                  min="1" 
+                  step="0.001" 
+                  style="width: 60px; text-align: center; font-weight: bold; padding: 5px; margin: 0 5px;"
+                  onchange="atualizarQtdDigitada(${i.id}, this.value)">
+            
+            <button onclick="alterarQtd(${i.id}, 1)">+</button>
+          </td>
+          <td class="right">R$ ${fmt(i.valor)}</td>
+          <td class="right">R$ ${fmt(sub)}</td>
+          <td class="right"><button onclick="remover(${i.id})">Remover</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
 
-    document.getElementById("total").textContent = fmt(total);
+      document.getElementById("total").textContent = fmt(total);
   }
 
   // Enter para buscar
@@ -641,6 +648,23 @@ async function verificarCaixa(){
 
     // CARREGA O RESUMO NO IFRAME OCULTO
     document.getElementById("iframeImpressao").src = "imprimir_fechamento.php?sessao_id=" + json.sessao_id;
+  }
+
+  function atualizarQtdDigitada(id, novoValor) {
+    const item = carrinho.find(i => i.id === id);
+    if (!item) return;
+
+    const qtd = parseFloat(novoValor);
+
+    // Valida se é um número válido e maior que zero
+    if (isNaN(qtd) || qtd <= 0) {
+        alert("Quantidade inválida. Insira um valor maior que zero.");
+        render(); // Recarrega a tabela para voltar ao valor anterior
+        return;
+    }
+
+    item.qtd = qtd;
+    render(); // Atualiza os totais e a tela
   }
 </script>
 </body>
