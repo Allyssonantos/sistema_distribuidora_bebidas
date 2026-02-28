@@ -1,3 +1,11 @@
+<?php
+session_start();
+if (!isset($_SESSION["admin_id"])) {
+    header("Location: login.php");
+    exit;
+}
+?>
+
 <!doctype html>
 <html lang="pt-br">
 <head>
@@ -63,7 +71,7 @@
   <div class="btn-group">
     <button onclick="novoProduto()" class="btn-primary">➕ Novo Produto</button>
     <a href="relatorios.php" class="btn-secondary">📊 Vendas</a>
-    <a href="estoque.php" class="btn-secondary">📥 Estoque</a>
+    <a href="estoque.php" class="btn-secondary">📥 Movimentação Estoque</a>
     <a href="categorias.php" class="btn-secondary">🏷️ Categorias</a>
     <a href="lucro.php" class="btn-secondary">📈 Lucro</a>
     <a href="fechamento_caixa.php" class="btn-secondary">🧾 Caixas</a>

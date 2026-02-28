@@ -377,16 +377,15 @@
     }
   }
 
-  async function abrirCaixa(){
-    const valor = prompt("Valor inicial do caixa (troco):", "0.00");
-    if(valor === null) return;
-
-    // Converter para número antes de enviar para evitar erros de string
-    const valorNum = parseFloat(valor.replace(",", "."));
-    if(isNaN(valorNum)) {
-        alert("Por favor, insira um valor numérico válido.");
+async function abrirCaixa() {
+    const operador = prompt("Digite seu nome (Operador):");
+    if (!operador) {
+        alert("O nome do operador é obrigatório para abrir o caixa.");
         return;
     }
+
+    const valor = prompt("Valor inicial do caixa (troco):", "0");
+    if (valor === null) return;
 
     try {
         const res = await fetch("../api/caixa_abrir.php", {
@@ -394,27 +393,25 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 caixa_id: CAIXA_ID,
-                valor_inicial: valorNum // Nome alinhado com a API
+                valor_inicial: valor,
+                aberto_por: operador 
             })
         });
 
         const json = await res.json();
 
-        if(!json.ok){
-            alert("Erro: " + (json.erro || "Erro desconhecido ao abrir."));
-            return;
+        if (json.ok) {
+            await verificarCaixa();
+            alert("Caixa aberto com sucesso!");
+        } else {
+            alert("Erro: " + (json.erro || "desconhecido"));
         }
-
-        // Esta chamada atualiza o HTML e libera os botões sem F5
-        await verificarCaixa(); 
-        alert("Caixa aberto com sucesso!");
-
-    } catch(err) {
+    } catch (err) {
         console.error(err);
         alert("Falha na comunicação com o servidor.");
     }
 }
-
+  
 // Garanta que a função verificarCaixa atualize o estado global
 async function verificarCaixa(){
     const box = document.getElementById("boxCaixa");
