@@ -59,14 +59,14 @@ try {
     $st3->execute([":sid" => $sessaoId]);
     $itensVendidos = $st3->fetchAll(PDO::FETCH_ASSOC);
 
-    // Retorno consolidado para o PDV
+    // Retorno consolidado para o PDV - Enviando TUDO de uma vez
     echo json_encode([
         "ok" => true,
         "aberto" => true,
         "sessao" => [
             "id" => $sessaoId,
             "aberto_em" => $sessao["aberto_em"],
-            "aberto_por" => $sessao["aberto_por"] ?? "Não informado", // Nome do operador
+            "aberto_por" => $sessao["aberto_por"] ?? "Operador", // Nome do operador
             "troco_inicial" => (float)$sessao["troco_inicial"],
         ],
         "totais" => [
