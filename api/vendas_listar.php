@@ -5,6 +5,10 @@ require_once __DIR__ . "/../config/db.php";
 $de = $_GET["de"] ?? date("Y-m-d");
 $ate = $_GET["ate"] ?? date("Y-m-d");
 
+// Garante formato Y-m-d caso venha ISO string completa do JS
+$de = substr($de, 0, 10);
+$ate = substr($ate, 0, 10);
+
 $inicio = $de . " 00:00:00";
 $fim    = $ate . " 23:59:59";
 

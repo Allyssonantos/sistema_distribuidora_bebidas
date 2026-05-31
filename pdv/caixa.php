@@ -1,4 +1,3 @@
-cat > /mnt/user-data/outputs/caixa.php << 'PHPEOF'
 <!doctype html>
 <html lang="pt-br">
 <head>
