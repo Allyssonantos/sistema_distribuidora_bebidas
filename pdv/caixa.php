@@ -310,6 +310,38 @@
   </div>
 </div>
 
+<!-- MODAL QUANTIDADE -->
+<div id="modalQtd" class="modal-bg">
+  <div class="modal-box" style="width:360px;">
+    <div class="modal-title">
+      <span id="qtdProdNome" style="font-size:14px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <button class="modal-close" onclick="fecharModalQtd()">✕</button>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;display:flex;justify-content:space-between;font-size:13px;">
+      <span style="color:var(--text-muted);">Preço unitário</span>
+      <span id="qtdProdPreco" style="font-family:var(--mono);font-weight:600;color:var(--green);"></span>
+    </div>
+    <div class="field" style="margin-bottom:12px;">
+      <label>Quantidade</label>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button onclick="stepQtd(-1)" style="width:44px;height:44px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">−</button>
+        <input id="qtdValor" type="number" step="0.001" min="0.001" value="1"
+          style="flex:1;text-align:center;font-family:var(--mono);font-size:24px;font-weight:600;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;outline:none;"
+          oninput="atualizarSubtotalModal()" onfocus="this.select()" />
+        <button onclick="stepQtd(1)" style="width:44px;height:44px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">+</button>
+      </div>
+    </div>
+    <div style="background:var(--accent-dim);border:1px solid var(--accent);border-radius:8px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span style="font-size:12px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;">Subtotal</span>
+      <span id="qtdSubtotal" style="font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent);">R$ 0,00</span>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel-m" onclick="fecharModalQtd()">Cancelar</button>
+      <button class="btn-confirm" style="background:var(--green);color:#000;" onclick="confirmarQtd()">✔ Adicionar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL FECHAR CAIXA -->
 <div id="modalFechar" class="modal-bg">
   <div class="modal-box">
@@ -371,16 +403,56 @@
   });
 
   /* ── CARRINHO ── */
+  let produtoSelecionado = null;
+
   function adicionar(p){
     document.getElementById("sugestoes").style.display = "none";
     document.getElementById("busca").value = "";
+    // Abre modal de quantidade
+    produtoSelecionado = p;
+    document.getElementById("qtdProdNome").textContent = p.nome;
+    document.getElementById("qtdProdPreco").textContent = "R$ " + fmt(p.preco_venda);
+    document.getElementById("qtdValor").value = "1";
+    atualizarSubtotalModal();
+    document.getElementById("modalQtd").style.display = "flex";
+    setTimeout(() => { document.getElementById("qtdValor").focus(); document.getElementById("qtdValor").select(); }, 100);
+  }
+
+  function fecharModalQtd(){
+    document.getElementById("modalQtd").style.display = "none";
+    produtoSelecionado = null;
     document.getElementById("busca").focus();
-    const id = parseInt(p.id);
+  }
+
+  function stepQtd(delta){
+    const input = document.getElementById("qtdValor");
+    const atual = parseFloat(input.value) || 1;
+    const novo = Math.max(0.001, atual + delta);
+    input.value = novo % 1 === 0 ? novo : novo.toFixed(3);
+    atualizarSubtotalModal();
+  }
+
+  function atualizarSubtotalModal(){
+    if(!produtoSelecionado) return;
+    const qtd = parseFloat(document.getElementById("qtdValor").value) || 0;
+    const sub = qtd * parseFloat(produtoSelecionado.preco_venda);
+    document.getElementById("qtdSubtotal").textContent = "R$ " + fmt(sub);
+  }
+
+  function confirmarQtd(){
+    if(!produtoSelecionado) return;
+    const qtd = parseFloat(document.getElementById("qtdValor").value);
+    if(isNaN(qtd) || qtd <= 0){ alert("Quantidade inválida."); return; }
+    const id = parseInt(produtoSelecionado.id);
     const ja = carrinho.find(i => i.id === id);
-    if(ja) ja.qtd += 1;
-    else carrinho.push({ id, nome: p.nome, valor: parseFloat(p.preco_venda), qtd: 1 });
+    if(ja) ja.qtd += qtd;
+    else carrinho.push({ id, nome: produtoSelecionado.nome, valor: parseFloat(produtoSelecionado.preco_venda), qtd });
+    fecharModalQtd();
     render();
   }
+
+  // Enter no campo de quantidade confirma
+  document.getElementById("qtdValor").addEventListener("keydown", e => { if(e.key === "Enter") confirmarQtd(); });
 
   function remover(id){ const idx = carrinho.findIndex(i => i.id === id); if(idx >= 0) carrinho.splice(idx, 1); render(); }
   function alterarQtd(id, delta){ const item = carrinho.find(i => i.id === id); if(!item) return; item.qtd += delta; if(item.qtd <= 0) remover(id); else render(); }
