@@ -288,6 +288,28 @@
   </div>
 </div>
 
+<!-- MODAL ABERTURA DE CAIXA -->
+<div id="modalAbertura" class="modal-bg">
+  <div class="modal-box" style="width:420px;">
+    <div class="modal-title">
+      🟢 Abrir Caixa
+      <button class="modal-close" onclick="fecharModalAbertura()">✕</button>
+    </div>
+    <div class="field">
+      <label>Nome do Operador</label>
+      <input id="aberturaNome" placeholder="Ex: João Silva" />
+    </div>
+    <div class="field">
+      <label>Troco Inicial (R$)</label>
+      <input id="aberturaTroco" type="number" step="0.01" min="0" value="0.00" />
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel-m" onclick="fecharModalAbertura()">Cancelar</button>
+      <button class="btn-confirm" style="background:var(--green);color:#000;" onclick="confirmarAberturaCaixa()">Abrir caixa</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL FECHAR CAIXA -->
 <div id="modalFechar" class="modal-bg">
   <div class="modal-box">
@@ -542,9 +564,10 @@
       const json = await res.json();
       if(json.aberto){
         CAIXA_ABERTO = true; CAIXA_SESSAO_ID = json.sessao_id; setBotoesVenda(true);
+        const operador = json.operador_nome ? ` · 👤 ${json.operador_nome}` : "";
         box.innerHTML = `
           <div class="status-bar open">
-            <div class="label"><span class="dot green"></span> Caixa ABERTO · Sessão #${json.sessao_id}</div>
+            <div class="label"><span class="dot green"></span> Caixa ABERTO · Sessão #${json.sessao_id}${operador}</div>
             <button onclick="abrirModalFechar()" style="background:var(--green);color:#000;border:none;padding:8px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Fechar caixa</button>
           </div>`;
       } else {
@@ -552,7 +575,7 @@
         box.innerHTML = `
           <div class="status-bar close">
             <div class="label" style="color:var(--yellow);"><span class="dot yellow"></span> Caixa FECHADO</div>
-            <button onclick="abrirCaixa()" style="background:var(--yellow);color:#000;border:none;padding:8px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Abrir caixa agora</button>
+            <button onclick="abrirModalAbertura()" style="background:var(--yellow);color:#000;border:none;padding:8px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:13px;">Abrir caixa agora</button>
           </div>`;
       }
     } catch(e){
@@ -560,12 +583,26 @@
     }
   }
 
-  async function abrirCaixa(){
-    const troco = prompt("Troco inicial (R$):", "0.00");
-    if(troco === null) return;
-    const res = await fetch("../api/caixa_abrir.php", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ caixa_id: CAIXA_ID, troco_inicial: parseFloat(troco||0) }) });
+  function abrirModalAbertura(){
+    document.getElementById("aberturaNome").value = "";
+    document.getElementById("aberturaTroco").value = "0.00";
+    document.getElementById("modalAbertura").style.display = "flex";
+    setTimeout(() => document.getElementById("aberturaNome").focus(), 100);
+  }
+  function fecharModalAbertura(){ document.getElementById("modalAbertura").style.display = "none"; }
+
+  async function confirmarAberturaCaixa(){
+    const nome  = document.getElementById("aberturaNome").value.trim();
+    const troco = parseFloat(document.getElementById("aberturaTroco").value || "0");
+    if(!nome){ alert("Informe o nome do operador."); document.getElementById("aberturaNome").focus(); return; }
+    const res = await fetch("../api/caixa_abrir.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ caixa_id: CAIXA_ID, troco_inicial: troco, operador_nome: nome })
+    });
     const json = await res.json();
     if(!json.ok){ alert("Erro: " + json.erro); return; }
+    fecharModalAbertura();
     verificarCaixa();
   }
 

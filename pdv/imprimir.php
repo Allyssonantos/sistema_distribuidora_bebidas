@@ -2,23 +2,22 @@
 require_once __DIR__ . "/../config/db.php";
 
 $id = (int)($_GET["id"] ?? 0);
-if ($id <= 0) {
-  die("Venda inválida.");
-}
+if ($id <= 0) die("Venda inválida.");
 
-// Busca venda
+// Busca venda + operador da sessão
 $stmtVenda = $pdo->prepare("
-  SELECT id, data_venda, forma_pagamento, subtotal, desconto, total, valor_recebido, troco, status
-  FROM vendas
-  WHERE id = ?
+  SELECT v.id, v.data_venda, v.forma_pagamento, v.subtotal, v.desconto,
+         v.total, v.valor_recebido, v.troco, v.status,
+         cs.operador_nome
+  FROM vendas v
+  LEFT JOIN caixa_sessoes cs ON cs.id = v.caixa_sessao_id
+  WHERE v.id = ?
   LIMIT 1
 ");
 $stmtVenda->execute([$id]);
 $venda = $stmtVenda->fetch();
 
-if (!$venda) {
-  die("Venda não encontrada.");
-}
+if (!$venda) die("Venda não encontrada.");
 
 // Busca itens
 $stmtItens = $pdo->prepare("
@@ -34,14 +33,13 @@ $itens = $stmtItens->fetchAll();
 function brl($v){
   return number_format((float)$v, 2, ",", ".");
 }
-
 function pagamentoLabel($p){
   return match($p){
-    "DINHEIRO" => "Dinheiro",
-    "PIX" => "PIX",
-    "CARTAO_DEBITO" => "Cartão Débito",
+    "DINHEIRO"       => "Dinheiro",
+    "PIX"            => "PIX",
+    "CARTAO_DEBITO"  => "Cartão Débito",
     "CARTAO_CREDITO" => "Cartão Crédito",
-    default => "Outros"
+    default          => "Outros"
   };
 }
 ?>
@@ -52,7 +50,6 @@ function pagamentoLabel($p){
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Imprimir Cupom</title>
   <style>
-    /* Cupom 80mm */
     @page { margin: 6mm; }
     body { font-family: "Courier New", monospace; background:#fff; margin:0; }
     .cupom { width: 80mm; margin: 0 auto; font-size: 12px; }
@@ -64,9 +61,7 @@ function pagamentoLabel($p){
     .small { font-size: 11px; }
     .btns { margin: 12px auto; width:80mm; display:flex; gap:8px; }
     button { padding:10px; width:100%; cursor:pointer; }
-    @media print {
-      .btns { display:none; }
-    }
+    @media print { .btns { display:none; } }
   </style>
 </head>
 <body>
@@ -84,6 +79,9 @@ function pagamentoLabel($p){
     <b>Venda:</b> #<?= (int)$venda["id"] ?><br>
     <b>Data:</b> <?= date("d/m/Y H:i", strtotime($venda["data_venda"])) ?><br>
     <b>Pagamento:</b> <?= htmlspecialchars(pagamentoLabel($venda["forma_pagamento"])) ?><br>
+    <?php if (!empty($venda["operador_nome"])): ?>
+      <b>Operador:</b> <?= htmlspecialchars($venda["operador_nome"]) ?><br>
+    <?php endif; ?>
   </div>
 
   <div class="line"></div>
@@ -109,7 +107,6 @@ function pagamentoLabel($p){
     <tr><td>Subtotal</td><td class="right"><?= brl($venda["subtotal"]) ?></td></tr>
     <tr><td>Desconto</td><td class="right"><?= brl($venda["desconto"]) ?></td></tr>
     <tr><td><b>TOTAL</b></td><td class="right"><b><?= brl($venda["total"]) ?></b></td></tr>
-
     <?php if ($venda["forma_pagamento"] === "DINHEIRO"): ?>
       <tr><td>Recebido</td><td class="right"><?= brl($venda["valor_recebido"]) ?></td></tr>
       <tr><td>Troco</td><td class="right"><?= brl($venda["troco"]) ?></td></tr>
@@ -126,20 +123,11 @@ function pagamentoLabel($p){
 
 <div class="btns">
   <button onclick="window.print()">🖨️ Imprimir</button>
-  <button onclick="voltar()">↩️ Voltar</button>
+  <button onclick="window.location.href='caixa.php'">↩️ Voltar</button>
 </div>
 
 <script>
-  // imprime automático ao abrir
-  window.onload = () => {
-    setTimeout(() => window.print(), 300);
-  };
-
-  function voltar(){
-    // volta pro caixa
-    window.location.href = "caixa.php";
-  }
+  window.onload = () => setTimeout(() => window.print(), 300);
 </script>
-
 </body>
 </html>
