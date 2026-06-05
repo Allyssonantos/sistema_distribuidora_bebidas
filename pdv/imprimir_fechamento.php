@@ -23,6 +23,19 @@ $stI = $pdo->prepare("
 $stI->execute([$sessaoId]);
 $itens = $stI->fetchAll();
 
+// Descontos dados na sessão
+$stD = $pdo->prepare("
+  SELECT
+    COUNT(*) as qtd_vendas_com_desc,
+    SUM(subtotal) as total_bruto,
+    SUM(desconto) as total_desconto,
+    SUM(total)    as total_liquido
+  FROM vendas
+  WHERE caixa_sessao_id = ? AND status = 'FINALIZADA' AND desconto > 0
+");
+$stD->execute([$sessaoId]);
+$desc = $stD->fetch();
+
 function brl($v){ return "R$ " . number_format((float)$v, 2, ",", "."); }
 ?>
 <!doctype html>
@@ -53,8 +66,8 @@ function brl($v){ return "R$ " . number_format((float)$v, 2, ",", "."); }
 
   <div class="line"></div>
 
-  <?php if (!empty($s["operador_nome"])): ?>
-    <div class="row"><span>Operador:</span> <span><b><?= htmlspecialchars($s["operador_nome"]) ?></b></span></div>
+  <?php if (!empty($s["aberto_por"])): ?>
+    <div class="row"><span>Operador:</span> <span><b><?= htmlspecialchars($s["aberto_por"]) ?></b></span></div>
   <?php endif; ?>
   <div class="row"><span>Abertura:</span> <span><?= $s["aberto_em"] ?></span></div>
   <div class="row"><span>Fechamento:</span> <span><?= $s["fechado_em"] ?></span></div>

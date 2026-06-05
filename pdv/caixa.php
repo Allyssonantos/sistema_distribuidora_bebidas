@@ -242,6 +242,19 @@
         <option value="OUTROS">Outros</option>
       </select>
     </div>
+    <!-- Desconto na venda total -->
+    <div class="field">
+      <label>Desconto na venda (opcional)</label>
+      <div style="display:flex;gap:8px;">
+        <input id="descontoVenda" type="number" step="0.01" min="0" placeholder="0,00"
+          style="flex:1;" oninput="recalcularTotalFinal()" />
+        <select id="descontoVendaTipo" onchange="recalcularTotalFinal()"
+          style="background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 13px;font-size:13px;font-family:var(--sans);outline:none;cursor:pointer;">
+          <option value="R$">R$</option>
+          <option value="%">%</option>
+        </select>
+      </div>
+    </div>
     <div id="blocoDinheiro" style="display:none;">
       <div class="field">
         <label>Valor recebido</label>
@@ -255,6 +268,7 @@
     <div class="modal-total">
       <div class="modal-total-label">Total a pagar</div>
       <div class="modal-total-val">R$ <span id="totalModal">0,00</span></div>
+      <div id="descontoInfo" style="display:none;font-size:12px;color:var(--yellow);margin-top:4px;"></div>
     </div>
     <div class="modal-btns">
       <button class="btn-cancel-m" onclick="fecharModal()">Cancelar</button>
@@ -331,9 +345,11 @@
         <button onclick="stepQtd(1)" style="width:44px;height:44px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">+</button>
       </div>
     </div>
-    <div style="background:var(--accent-dim);border:1px solid var(--accent);border-radius:8px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <span style="font-size:12px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;">Subtotal</span>
-      <span id="qtdSubtotal" style="font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent);">R$ 0,00</span>
+    <div style="background:var(--accent-dim);border:1px solid var(--accent);border-radius:8px;padding:11px 14px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:12px;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;">Subtotal</span>
+        <span id="qtdSubtotal" style="font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent);">R$ 0,00</span>
+      </div>
     </div>
     <div class="modal-btns">
       <button class="btn-cancel-m" onclick="fecharModalQtd()">Cancelar</button>
@@ -360,8 +376,6 @@
     </div>
   </div>
 </div>
-
-<iframe id="iframeImpressao" style="display:none;"></iframe>
 
 <script>
   const CAIXA_ID = 1;
@@ -408,7 +422,6 @@
   function adicionar(p){
     document.getElementById("sugestoes").style.display = "none";
     document.getElementById("busca").value = "";
-    // Abre modal de quantidade
     produtoSelecionado = p;
     document.getElementById("qtdProdNome").textContent = p.nome;
     document.getElementById("qtdProdPreco").textContent = "R$ " + fmt(p.preco_venda);
@@ -495,45 +508,83 @@
   function limparCarrinho(){ if(carrinho.length && !confirm("Limpar carrinho?")) return; carrinho.length = 0; render(); }
 
   /* ── MODAL FINALIZAR ── */
+  let totalBruto = 0; // subtotal sem desconto de venda
+
   function abrirFinalizar(){
     if(!CAIXA_ABERTO){ alert("Caixa está FECHADO. Abra o caixa para vender."); return; }
     if(!carrinho.length){ alert("Carrinho vazio."); return; }
+    // Zera desconto de venda ao abrir
+    document.getElementById("descontoVenda").value = "";
+    document.getElementById("descontoVendaTipo").value = "R$";
+    document.getElementById("descontoInfo").style.display = "none";
     document.getElementById("modal").style.display = "flex";
-    document.getElementById("totalModal").textContent = document.getElementById("total").textContent;
     document.getElementById("pagamento").value = "PIX";
+    totalBruto = parseFloat(document.getElementById("total").textContent.replace(",", "."));
+    document.getElementById("totalModal").textContent = fmt(totalBruto);
     atualizarPagamento();
   }
   function fecharModal(){ document.getElementById("modal").style.display = "none"; }
+
+  function recalcularTotalFinal(){
+    const descVal  = parseFloat(document.getElementById("descontoVenda").value) || 0;
+    const descTipo = document.getElementById("descontoVendaTipo").value;
+    let desconto = 0;
+    if(descTipo === "%") desconto = totalBruto * (descVal / 100);
+    else desconto = descVal;
+    desconto = Math.min(desconto, totalBruto);
+    const total = totalBruto - desconto;
+    document.getElementById("totalModal").textContent = fmt(total);
+    const info = document.getElementById("descontoInfo");
+    if(desconto > 0){
+      info.style.display = "block";
+      info.textContent = `Subtotal R$ ${fmt(totalBruto)} − desconto R$ ${fmt(desconto)}`;
+    } else {
+      info.style.display = "none";
+    }
+    if(document.getElementById("pagamento").value === "DINHEIRO") calcularTroco();
+  }
+
   function atualizarPagamento(){
     const v = document.getElementById("pagamento").value;
     document.getElementById("blocoDinheiro").style.display = v === "DINHEIRO" ? "block" : "none";
     if(v === "DINHEIRO") calcularTroco();
   }
+
   function calcularTroco(){
-    const total = parseFloat(document.getElementById("total").textContent.replace(",", "."));
-    const rec = parseFloat(document.getElementById("recebido").value || "0");
+    const total = parseFloat(document.getElementById("totalModal").textContent.replace(",", "."));
+    const rec   = parseFloat(document.getElementById("recebido").value || "0");
     document.getElementById("troco").textContent = fmt(Math.max(0, rec - total));
   }
 
   async function confirmarVenda(){
     if(!CAIXA_ABERTO){ alert("Caixa FECHADO."); return; }
-    const forma = document.getElementById("pagamento").value;
-    const total = parseFloat(document.getElementById("total").textContent.replace(",", "."));
-    let recebido = total, troco = 0;
+    const forma    = document.getElementById("pagamento").value;
+    const total    = parseFloat(document.getElementById("totalModal").textContent.replace(",", "."));
+    const desconto = parseFloat(fmt(totalBruto - total).replace(",", "."));
+    let recebido   = total, troco = 0;
     if(forma === "DINHEIRO"){
       recebido = parseFloat(document.getElementById("recebido").value || "0");
       if(recebido < total){ alert("Valor insuficiente."); return; }
       troco = recebido - total;
     }
-    const payload = { caixa_id: CAIXA_ID, forma_pagamento: forma, valor_recebido: recebido, troco, itens: carrinho.map(i => ({ id: i.id, qtd: i.qtd })) };
+    const payload = {
+      caixa_id: CAIXA_ID,
+      forma_pagamento: forma,
+      subtotal: totalBruto,
+      desconto,
+      total,
+      valor_recebido: recebido,
+      troco,
+      itens: carrinho.map(i => ({ id: i.id, qtd: i.qtd, valor_unit: i.valor }))
+    };
     try {
       const res = await fetch("../api/vendas_salvar.php", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
       const json = await res.json();
       if(!json.ok){ alert("Erro: " + json.erro); return; }
       fecharModal();
       limparCarrinho();
-      document.getElementById("iframeImpressao").src = "imprimir.php?id=" + json.venda_id;
-      carregarVendas(); // atualiza lista lateral
+      window.open("imprimir.php?id=" + json.venda_id, "_blank");
+      carregarVendas();
     } catch(e){ alert("Erro de comunicação."); }
   }
 
@@ -545,16 +596,33 @@
   async function carregarVendas(){
     const list = document.getElementById("vendasList");
     try {
-      // Busca as últimas vendas da sessão ativa (ou do dia)
-      const res = await fetch("../api/vendas_listar.php?de=" + new Date().toISOString().slice(0,10) + "&ate=" + new Date().toISOString().slice(0,10));
-      const vendas = await res.json();
+      // Usa data local (não UTC) para evitar bug de fuso horário
+      const agora = new Date();
+      const hojeLocal = agora.getFullYear() + "-"
+        + String(agora.getMonth() + 1).padStart(2, "0") + "-"
+        + String(agora.getDate()).padStart(2, "0");
+
+      const res = await fetch("../api/vendas_listar.php?de=" + hojeLocal + "&ate=" + hojeLocal);
+
+      // Verifica se a resposta é JSON válido antes de parsear
+      const text = await res.text();
+      let vendas;
+      try { vendas = JSON.parse(text); } catch(e){
+        list.innerHTML = '<div class="vendas-empty" style="color:var(--red);">Erro na API</div>';
+        console.error("Resposta inválida:", text);
+        return;
+      }
+
+      // Suporta tanto array direto quanto { vendas: [...] }
+      if(!Array.isArray(vendas)) vendas = vendas.vendas || vendas.data || [];
 
       if(!vendas.length){
         list.innerHTML = '<div class="vendas-empty">Nenhuma venda hoje</div>';
         return;
       }
 
-      // Mostra as 20 mais recentes
+      // Ordena do mais recente pro mais antigo e pega 20
+      vendas.sort((a, b) => b.id - a.id);
       const recentes = vendas.slice(0, 20);
       list.innerHTML = "";
 
@@ -562,9 +630,9 @@
         const cancelada = v.status === "CANCELADA";
         const div = document.createElement("div");
         div.className = "venda-item";
-
-        const hora = new Date(v.data_venda).toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" });
-
+        const dataVenda = new Date(v.data_venda.replace(" ", "T"));
+        const hora = dataVenda.toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" });
+        const temDesc = parseFloat(v.desconto) > 0;
         div.innerHTML = `
           <div class="venda-top">
             <span class="venda-id">#${v.id}</span>
@@ -576,13 +644,15 @@
               ? '<span class="badge-cancel">CANCELADA</span>'
               : `<span class="badge-pag">${pagLabel(v.forma_pagamento)}</span>`
             }
+            ${temDesc ? `<span style="color:var(--yellow);font-size:10px;">desc. R$ ${fmt(v.desconto)}</span>` : ''}
           </div>
           ${!cancelada ? `<button class="btn-cancelar-venda" onclick="abrirCancelar(${v.id}, '${fmt(v.total)}')">🚫 Cancelar venda</button>` : ''}
         `;
         list.appendChild(div);
       });
     } catch(e){
-      list.innerHTML = '<div class="vendas-empty" style="color:var(--red);">Erro ao carregar</div>';
+      list.innerHTML = '<div class="vendas-empty" style="color:var(--red);">Erro ao carregar vendas</div>';
+      console.error("carregarVendas erro:", e);
     }
   }
 
@@ -712,7 +782,7 @@
     if(!json.ok){ alert(json.erro); return; }
     fecharModalFechar();
     await verificarCaixa();
-    document.getElementById("iframeImpressao").src = "imprimir_fechamento.php?sessao_id=" + json.sessao_id;
+    window.open("imprimir_fechamento.php?sessao_id=" + json.sessao_id, "_blank");
   }
 
   // init

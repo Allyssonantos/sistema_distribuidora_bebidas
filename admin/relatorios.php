@@ -120,12 +120,13 @@ if (!isset($_SESSION["admin_id"])) { header("Location: login.php"); exit; }
     <div class="card"><div class="card-label">PIX</div><div class="card-val mono" id="pix">R$ 0,00</div></div>
     <div class="card"><div class="card-label">Dinheiro</div><div class="card-val mono" id="dinheiro">R$ 0,00</div></div>
     <div class="card"><div class="card-label">Cartões</div><div class="card-val mono" id="cartoes">R$ 0,00</div></div>
+    <div class="card"><div class="card-label">Descontos dados</div><div class="card-val mono" id="descontos" style="color:var(--yellow);">R$ 0,00</div><div class="card-sub" id="qtdDesc">0 vendas c/ desconto</div></div>
   </div>
 
   <div class="table-wrap">
     <table>
       <thead>
-        <tr><th>ID</th><th>Data / Hora</th><th>Pagamento</th><th class="right">Total</th><th class="right">Ações</th></tr>
+        <tr><th>ID</th><th>Data / Hora</th><th>Pagamento</th><th class="right">Subtotal</th><th class="right">Desconto</th><th class="right">Total</th><th class="right">Ações</th></tr>
       </thead>
       <tbody id="lista"></tbody>
     </table>
@@ -138,20 +139,27 @@ if (!isset($_SESSION["admin_id"])) { header("Location: login.php"); exit; }
     const de=document.getElementById("de").value, ate=document.getElementById("ate").value;
     const res=await fetch('../api/vendas_listar.php?de='+de+'&ate='+ate);
     const vendas=await res.json();
-    let tTotal=0,tPix=0,tDin=0,tCar=0;
+    let tTotal=0,tPix=0,tDin=0,tCar=0,tDesc=0,qtdDesc=0;
     const tbody=document.getElementById("lista");
     tbody.innerHTML="";
     vendas.forEach(v=>{
       const val=Number(v.total||0);
+      const desc=Number(v.desconto||0);
+      const sub=Number(v.subtotal||val);
       tTotal+=val;
+      tDesc+=desc;
+      if(desc>0) qtdDesc++;
       if(v.forma_pagamento==="PIX")tPix+=val;
       else if(v.forma_pagamento==="DINHEIRO")tDin+=val;
       else if(v.forma_pagamento.includes("CARTAO"))tCar+=val;
       const tr=document.createElement("tr");
       tr.innerHTML='<td class="mono" style="color:var(--text-muted);">#'+v.id+'</td>'+
-        '<td>'+new Date(v.data_venda).toLocaleString("pt-BR")+'</td>'+
+        '<td>'+new Date(v.data_venda.replace(" ","T")).toLocaleString("pt-BR")+'</td>'+
         '<td><span class="badge badge-info">'+v.forma_pagamento+'</span></td>'+
-        '<td class="right mono">'+brl(v.total)+'</td>'+
+        '<td class="right mono">'+brl(sub)+'</td>'+
+        '<td class="right mono" style="'+(desc>0?'color:var(--yellow);':'color:var(--text-muted);')+'">'+
+          (desc>0 ? '− '+brl(desc) : '—')+'</td>'+
+        '<td class="right mono" style="font-weight:600;">'+brl(val)+'</td>'+
         '<td class="right"><button class="btn btn-ghost" style="padding:5px 12px;font-size:12px;" onclick="window.open(\'../pdv/imprimir.php?id='+v.id+'\')">🖨️ Reimprimir</button></td>';
       tbody.appendChild(tr);
     });
@@ -159,6 +167,8 @@ if (!isset($_SESSION["admin_id"])) { header("Location: login.php"); exit; }
     document.getElementById("pix").textContent=brl(tPix);
     document.getElementById("dinheiro").textContent=brl(tDin);
     document.getElementById("cartoes").textContent=brl(tCar);
+    document.getElementById("descontos").textContent=brl(tDesc);
+    document.getElementById("qtdDesc").textContent=qtdDesc+" venda"+(qtdDesc!==1?"s":"")+" c/ desconto";
   }
   const hoje=new Date().toISOString().split('T')[0];
   document.getElementById("de").value=hoje;

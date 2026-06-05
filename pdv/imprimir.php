@@ -105,7 +105,9 @@ function pagamentoLabel($p){
 
   <table>
     <tr><td>Subtotal</td><td class="right"><?= brl($venda["subtotal"]) ?></td></tr>
-    <tr><td>Desconto</td><td class="right"><?= brl($venda["desconto"]) ?></td></tr>
+    <?php if ((float)$venda["desconto"] > 0): ?>
+      <tr><td>Desconto</td><td class="right">− <?= brl($venda["desconto"]) ?></td></tr>
+    <?php endif; ?>
     <tr><td><b>TOTAL</b></td><td class="right"><b><?= brl($venda["total"]) ?></b></td></tr>
     <?php if ($venda["forma_pagamento"] === "DINHEIRO"): ?>
       <tr><td>Recebido</td><td class="right"><?= brl($venda["valor_recebido"]) ?></td></tr>
