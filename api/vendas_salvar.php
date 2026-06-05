@@ -75,8 +75,10 @@ try {
     ];
   }
 
-  $desconto = 0.00;
-  $total = $subtotal - $desconto;
+  // Desconto enviado pelo PDV (validado para não ultrapassar o subtotal)
+  $desconto = min((float)($data["desconto"] ?? 0), $subtotal);
+  $desconto = max(0, $desconto); // garante não negativo
+  $total = round($subtotal - $desconto, 2);
 
   if ($forma === "DINHEIRO" && $recebido < $total) {
     throw new Exception("Valor recebido menor que o total");
